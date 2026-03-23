@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .env
 backend/db.sqlite3
 __pycache__/
@@ -7,3 +8,33 @@ db.sqlite3
 *$py.class
 *venv12/
 *venv/
+=======
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+db.sqlite3
+
+# Node.js
+node_modules/
+dist/
+
+# Environment
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+>>>>>>> dadbfcf (feat: 新增前端頁面)

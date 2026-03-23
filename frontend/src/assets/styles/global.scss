@@ -1,0 +1,27 @@
+@use 'variables' as *;
+
+// Element Plus 主題覆蓋
+:root {
+  --el-color-primary: #{$temple-gold-primary};
+  --el-color-primary-light-3: #{$temple-gold-light};
+  --el-color-primary-dark-2: #{$temple-gold-dark};
+  --el-border-radius-base: 8px;
+  --el-font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  color: $temple-text-dark;
+  background-color: $temple-bg-cream;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+}
