@@ -10,20 +10,59 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
+from urllib.parse import parse_qs, urlparse
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _load_env_file(env_path: Path) -> None:
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
+
+
+def _database_config_from_url(database_url: str) -> dict:
+    parsed_url = urlparse(database_url)
+    query_params = parse_qs(parsed_url.query)
+    sslmode = query_params.get("sslmode", ["require"])[0]
+
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": parsed_url.path.lstrip("/") or "postgres",
+        "USER": parsed_url.username or "postgres",
+        "PASSWORD": parsed_url.password or "",
+        "HOST": parsed_url.hostname or "localhost",
+        "PORT": parsed_url.port or 5432,
+        "OPTIONS": {"sslmode": sslmode},
+    }
+
+
+_load_env_file(BASE_DIR / ".env")
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-_mb06cxhohynyj7r229noqe7qm_oi^n3&aokt3ppuy-r**9(k+"
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "django-insecure-_mb06cxhohynyj7r229noqe7qm_oi^n3&aokt3ppuy-r**9(k+",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
 ALLOWED_HOSTS = ['*']
 
@@ -75,10 +114,14 @@ WSGI_APPLICATION = "lumian.wsgi.application"
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": (
+        _database_config_from_url(os.environ["DATABASE_URL"])
+        if os.getenv("DATABASE_URL")
+        else {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    )
 }
 
 
