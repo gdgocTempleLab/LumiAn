@@ -20,6 +20,9 @@ def create_default_superuser(sender, **kwargs):
     if not User.objects.filter(account=username).exists():
         print(f"[*] 系統初始化：正在建立預設管理員帳號 ({username})...")
         User.objects.create_superuser(account=username, email=f"{username}@example.com", password=password)
+    if not User.objects.filter(username=username).exists():
+        print(f"[*] 系統初始化：正在建立預設管理員帳號 ({username})...")
+        User.objects.create_superuser(username=username, password=password)
 
 
 class SystemConfig(AppConfig):
