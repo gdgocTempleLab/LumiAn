@@ -1,5 +1,6 @@
 <<<<<<< HEAD
 .env
+<<<<<<< HEAD
 backend/db.sqlite3
 __pycache__/
 db.sqlite3
@@ -38,3 +39,9 @@ Thumbs.db
 *.log
 npm-debug.log*
 >>>>>>> dadbfcf (feat: 新增前端頁面)
+=======
+db.sqlite3
+/__pycache__/
+*.py[cod]
+*$py.class
+>>>>>>> 1c58cef (chore: Modify .gitignore setting and remove useless cache)
