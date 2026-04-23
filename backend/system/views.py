@@ -1,8 +1,12 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from .service import generate_jwt_token
+
+User = get_user_model()
+
+from rest_framework.permissions import IsAuthenticated
 
 class LoginView(APIView):
     # Allow any user (authenticated or not) to hit this endpoint.
@@ -37,6 +41,29 @@ class LoginView(APIView):
                 "Status": "Error",
                 "Message": "Invalid credentials."
             }, status=status.HTTP_401_UNAUTHORIZED)
+
+class AccountListView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        users = User.objects.all()
+        account_list = []
+        for user in users:
+            account_list.append({
+                "Id": user.user_id,
+                "Account": user.account,
+                "Role": user.role,
+                "Email": user.email,
+                "Account_Status": user.Account_Status,
+                "Account_Creation_Time": user.Account_Creation_Time,
+                "Account_Update_Time": user.Account_Update_Time
+            })
+
+        return Response({
+            "Status": "Success",
+            "Data": {
+                "AccountList": account_list
+            }
+        }, status=status.HTTP_200_OK)
 
 
 # ==========================================
