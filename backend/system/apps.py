@@ -18,11 +18,14 @@ def create_default_superuser(sender, **kwargs):
 
     # 檢查該帳號是否已經存在，如果不存在就建立
     if not User.objects.filter(account=username).exists():
+<<<<<<< HEAD
         print(f"[*] 系統初始化：正在建立預設管理員帳號 ({username})...")
         User.objects.create_superuser(account=username, email=f"{username}@example.com", password=password)
     if not User.objects.filter(username=username).exists():
+=======
+>>>>>>> e38dc17 (feat: Modify user model and default admin creation logic)
         print(f"[*] 系統初始化：正在建立預設管理員帳號 ({username})...")
-        User.objects.create_superuser(username=username, password=password)
+        User.objects.create_superuser(account=username, email=f"{username}@example.com", password=password)
 
 
 class SystemConfig(AppConfig):
