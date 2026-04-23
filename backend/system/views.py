@@ -7,7 +7,10 @@ from .service import generate_jwt_token
 User = get_user_model()
 
 from rest_framework.permissions import IsAuthenticated
+<<<<<<< HEAD
 from .permissions import IsAdminRole
+=======
+>>>>>>> 09f9d84 (feat: implement authentication login and account listing API endpoints)
 
 class LoginView(APIView):
     # Allow any user (authenticated or not) to hit this endpoint.
@@ -44,7 +47,11 @@ class LoginView(APIView):
             }, status=status.HTTP_401_UNAUTHORIZED)
 
 class AccountListView(APIView):
+<<<<<<< HEAD
     permission_classes = [IsAuthenticated, IsAdminRole]
+=======
+    permission_classes = [IsAuthenticated]
+>>>>>>> 09f9d84 (feat: implement authentication login and account listing API endpoints)
     def get(self, request):
         users = User.objects.all()
         account_list = []
@@ -66,6 +73,7 @@ class AccountListView(APIView):
             }
         }, status=status.HTTP_200_OK)
 
+<<<<<<< HEAD
 
 class CreateAccountView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
@@ -267,6 +275,8 @@ class AdminResetPasswordView(APIView):
             "Message": "Password reset successfully."
         }, status=status.HTTP_200_OK)
 
+=======
+>>>>>>> 09f9d84 (feat: implement authentication login and account listing API endpoints)
 
 # ==========================================
 # You can copy and paste the class below to quickly create new APIs.
