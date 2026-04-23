@@ -11,8 +11,8 @@ def generate_jwt_token(user):
     # 產生 RefreshToken 與 AccessToken
     refresh = RefreshToken.for_user(user)
     
-    # 根據使用者的屬性判斷角色 (例如是否為超級管理員)
-    role = "Admin" if getattr(user, 'is_superuser', False) else "User"
+    # 取得使用者的角色，預設為 User
+    role = getattr(user, 'role', 'User')
     
     # 將角色資訊加入 access token 的 payload 中
     refresh['role'] = role 

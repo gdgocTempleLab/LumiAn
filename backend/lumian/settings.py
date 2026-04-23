@@ -179,4 +179,9 @@ SIMPLE_JWT = {
     
     # 既然 Access Token 不會過期了，Refresh Token 設多少都沒差
     'REFRESH_TOKEN_LIFETIME': timedelta(days=9999),
+    
+    # 告訴 SimpleJWT 使用 user_id 作為使用者的唯一識別欄位
+    'USER_ID_FIELD': 'user_id',
 }
+
+AUTH_USER_MODEL = 'system.User_Account'
