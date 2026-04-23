@@ -169,3 +169,14 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ),
 }
+
+from datetime import timedelta
+
+# JWT 設定 - 宮廟內網專用：超級長壽命 Token
+SIMPLE_JWT = {
+    # 設定為 9999 天 (約 27 年)，實質上等於永久有效
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=9999), 
+    
+    # 既然 Access Token 不會過期了，Refresh Token 設多少都沒差
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=9999),
+}
