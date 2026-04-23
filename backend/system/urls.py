@@ -1,8 +1,9 @@
 from django.urls import path
-from .views import LoginView, TemplateAPIView
+from .views import LoginView, TemplateAPIView, AccountListView
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
+    path('account/list/', AccountListView.as_view(), name='account_list'),
     
     # ==========================================
     # API Route Template
