@@ -70,7 +70,30 @@ class AccountListView(APIView):
 class CreateAccountView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
     def post(self, request):
+        data = request.data.get("Data", {})
+        account = data.get("Account")
+        password = data.get("Password")
+        role = data.get("Role")
+        email = data.get("Email")
+        account_status = data.get("Account_Status")
         
+        if not account or not password or not role or not email or not account_status:
+            return Response({
+                "Status": "Error",
+                "Message": "Missing arguments."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(account=account).exists():
+            return Response({
+                "Status": "Error",
+                "Message": "Account already exists."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        User.objects.create_user(account=account, password=password, role=role, email=email, Account_Status=account_status)
+        return Response({
+            "Status": "Success",
+            "Message": "Account created successfully."
+        }, status=status.HTTP_201_CREATED)
 
 
 # ==========================================
