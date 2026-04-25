@@ -7,6 +7,7 @@ from .service import generate_jwt_token
 User = get_user_model()
 
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsAdminRole
 
 class LoginView(APIView):
     # Allow any user (authenticated or not) to hit this endpoint.
@@ -43,7 +44,7 @@ class LoginView(APIView):
             }, status=status.HTTP_401_UNAUTHORIZED)
 
 class AccountListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAdminRole]
     def get(self, request):
         users = User.objects.all()
         account_list = []
@@ -64,6 +65,12 @@ class AccountListView(APIView):
                 "AccountList": account_list
             }
         }, status=status.HTTP_200_OK)
+
+
+class CreateAccountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    def post(self, request):
+        
 
 
 # ==========================================
