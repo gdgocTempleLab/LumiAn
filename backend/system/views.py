@@ -110,6 +110,7 @@ class CreateAccountView(APIView):
             "Status": "Success",
             "Message": "Account created successfully."
         }, status=status.HTTP_201_CREATED)
+<<<<<<< HEAD
 
 
 class AccountDetailView(APIView):
@@ -313,6 +314,8 @@ class CreateAccountView(APIView):
             "Status": "Success",
             "Message": "Account created successfully."
         }, status=status.HTTP_201_CREATED)
+=======
+>>>>>>> 7d495cf (feat:)
 
 
 # ==========================================

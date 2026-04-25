@@ -1,6 +1,7 @@
 from django.urls import path
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 from .views import LoginView, TemplateAPIView, AccountListView, CreateAccountView, AccountDetailView, UpdateAccountView, UpdateProfileView, ChangePasswordView, AdminResetPasswordView
 =======
 from .views import LoginView, TemplateAPIView, AccountListView
@@ -8,10 +9,14 @@ from .views import LoginView, TemplateAPIView, AccountListView
 =======
 from .views import LoginView, TemplateAPIView, AccountListView, CreateAccountView
 >>>>>>> e050925 (feat: Finish user creating API)
+=======
+from .views import LoginView, TemplateAPIView, AccountListView, CreateAccountView
+>>>>>>> 7d495cf (feat:)
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('account/list/', AccountListView.as_view(), name='account_list'),
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
     path('account/create/', CreateAccountView.as_view(), name='create_account'),
@@ -25,6 +30,9 @@ urlpatterns = [
 =======
     path('account/create/', CreateAccountView.as_view(), name='create_account'),
 >>>>>>> e050925 (feat: Finish user creating API)
+=======
+    path('account/create/', CreateAccountView.as_view(), name='create_account'),
+>>>>>>> 7d495cf (feat:)
     
     # ==========================================
     # API Route Template
