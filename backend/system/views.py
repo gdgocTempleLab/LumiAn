@@ -8,9 +8,13 @@ User = get_user_model()
 
 from rest_framework.permissions import IsAuthenticated
 <<<<<<< HEAD
+<<<<<<< HEAD
 from .permissions import IsAdminRole
 =======
 >>>>>>> 09f9d84 (feat: implement authentication login and account listing API endpoints)
+=======
+from .permissions import IsAdminRole
+>>>>>>> 0bcff83 (feat: Implement the premission filter.)
 
 class LoginView(APIView):
     # Allow any user (authenticated or not) to hit this endpoint.
@@ -48,10 +52,14 @@ class LoginView(APIView):
 
 class AccountListView(APIView):
 <<<<<<< HEAD
+<<<<<<< HEAD
     permission_classes = [IsAuthenticated, IsAdminRole]
 =======
     permission_classes = [IsAuthenticated]
 >>>>>>> 09f9d84 (feat: implement authentication login and account listing API endpoints)
+=======
+    permission_classes = [IsAuthenticated, IsAdminRole]
+>>>>>>> 0bcff83 (feat: Implement the premission filter.)
     def get(self, request):
         users = User.objects.all()
         account_list = []
@@ -277,6 +285,12 @@ class AdminResetPasswordView(APIView):
 
 =======
 >>>>>>> 09f9d84 (feat: implement authentication login and account listing API endpoints)
+
+class CreateAccountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    def post(self, request):
+        
+
 
 # ==========================================
 # You can copy and paste the class below to quickly create new APIs.
