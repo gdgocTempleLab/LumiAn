@@ -96,6 +96,32 @@ class CreateAccountView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class AccountDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    
+    def get(self, request, user_id):
+        try:
+            user = User.objects.get(user_id=user_id)
+        except User.DoesNotExist:
+            return Response({
+                "Status": "Error",
+                "Message": "Account not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            "Status": "Success",
+            "Data": {
+                "Id": user.user_id,
+                "Account": user.account,
+                "Role": user.role,
+                "Email": user.email,
+                "Account_Status": user.Account_Status,
+                "Account_Creation_Time": user.Account_Creation_Time,
+                "Account_Update_Time": user.Account_Update_Time
+            }
+        }, status=status.HTTP_200_OK)
+
+
 # ==========================================
 # API View Template
 # You can copy and paste the class below to quickly create new APIs.
