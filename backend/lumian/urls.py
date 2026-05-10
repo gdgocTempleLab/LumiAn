@@ -19,4 +19,6 @@ from django.urls import include, path
 
 urlpatterns = [
     path("api/sys/", include("system.urls")),
+    path("api/bel/", include("believer.urls")),
+    path("api/don/", include("donate.urls")),
 ]
