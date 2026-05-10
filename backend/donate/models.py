@@ -14,8 +14,8 @@ class Donation_Record(models.Model):
 	updated_at = models.DateTimeField(auto_now=True)
 
 	class Meta:
-        managed = False
-        db_table = "Donation_Record_Table"
+		managed = False
+		db_table = "Donation_Record_Table"
 
 	def __str__(self):
 		return f"{self.Donation_ID} - {self.Believer_Name}"
