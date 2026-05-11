@@ -5,7 +5,7 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('account/list/', AccountListView.as_view(), name='account_list'),
     path('account/create/', CreateAccountView.as_view(), name='create_account'),
-    path('account/<int:user_id>/', AccountDetailView.as_view(), name='account_detail'),
+    path('account/detail/', AccountDetailView.as_view(), name='account_detail'),
     
     # ==========================================
     # API Route Template

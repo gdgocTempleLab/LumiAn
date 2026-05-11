@@ -99,7 +99,16 @@ class CreateAccountView(APIView):
 class AccountDetailView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
     
-    def get(self, request, user_id):
+    def get(self, request):
+        # Retrieve 'id' from query parameters (e.g. ?id=1)
+        user_id = request.query_params.get("id")
+
+        if not user_id:
+            return Response({
+                "Status": "Error",
+                "Message": "id is required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             user = User.objects.get(user_id=user_id)
         except User.DoesNotExist:
