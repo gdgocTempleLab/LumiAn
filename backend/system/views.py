@@ -162,9 +162,6 @@ class UpdateAccountView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
             user.account = account
             
-        if "Password" in data and data["Password"]:
-            user.set_password(data.get("Password"))
-
         if "Role" in data:
             user.role = data.get("Role")
 
@@ -182,8 +179,96 @@ class UpdateAccountView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class UpdateProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        data = request.data.get("Data", {})
+
+        if "Account" in data:
+            account = data.get("Account")
+            if User.objects.filter(account=account).exclude(pk=user.pk).exists():
+                return Response({
+                    "Status": "Error",
+                    "Message": "Account already exists."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            user.account = account
+
+        if "Email" in data:
+            user.email = data.get("Email")
+
+        user.save()
+
+        return Response({
+            "Status": "Success",
+            "Message": "Profile updated successfully."
+        }, status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        data = request.data.get("Data", {})
+        
+        old_password = data.get("Old_Password")
+        new_password = data.get("New_Password")
+
+        if not old_password or not new_password:
+            return Response({
+                "Status": "Error",
+                "Message": "Old_Password and New_Password are required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user.check_password(old_password):
+            return Response({
+                "Status": "Error",
+                "Message": "Incorrect old password."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({
+            "Status": "Success",
+            "Message": "Password changed successfully."
+        }, status=status.HTTP_200_OK)
+
+
+class AdminResetPasswordView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def put(self, request):
+        data = request.data.get("Data", {})
+        user_id = data.get("Id")
+        new_password = data.get("New_Password")
+
+        if not user_id or not new_password:
+            return Response({
+                "Status": "Error",
+                "Message": "Id and New_Password are required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(user_id=user_id)
+        except User.DoesNotExist:
+            return Response({
+                "Status": "Error",
+                "Message": "Account not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({
+            "Status": "Success",
+            "Message": "Password reset successfully."
+        }, status=status.HTTP_200_OK)
+
+
 # ==========================================
-# API View Template
 # You can copy and paste the class below to quickly create new APIs.
 # ==========================================
 class TemplateAPIView(APIView):
