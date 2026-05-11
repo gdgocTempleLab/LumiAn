@@ -131,6 +131,57 @@ class AccountDetailView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class UpdateAccountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def put(self, request):
+        data = request.data.get("Data", {})
+        user_id = data.get("Id")
+
+        if not user_id:
+            return Response({
+                "Status": "Error",
+                "Message": "Id is required."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(user_id=user_id)
+        except User.DoesNotExist:
+            return Response({
+                "Status": "Error",
+                "Message": "Account not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if "Account" in data:
+            account = data.get("Account")
+            # Check if account already exists and belongs to another user
+            if User.objects.filter(account=account).exclude(pk=user.pk).exists():
+                return Response({
+                    "Status": "Error",
+                    "Message": "Account already exists."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            user.account = account
+            
+        if "Password" in data and data["Password"]:
+            user.set_password(data.get("Password"))
+
+        if "Role" in data:
+            user.role = data.get("Role")
+
+        if "Email" in data:
+            user.email = data.get("Email")
+
+        if "Account_Status" in data:
+            user.Account_Status = data.get("Account_Status")
+
+        user.save()
+
+        return Response({
+            "Status": "Success",
+            "Message": "Account updated successfully."
+        }, status=status.HTTP_200_OK)
+
+
 # ==========================================
 # API View Template
 # You can copy and paste the class below to quickly create new APIs.

@@ -1,11 +1,12 @@
 from django.urls import path
-from .views import LoginView, TemplateAPIView, AccountListView, CreateAccountView, AccountDetailView
+from .views import LoginView, TemplateAPIView, AccountListView, CreateAccountView, AccountDetailView, UpdateAccountView
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('account/list/', AccountListView.as_view(), name='account_list'),
     path('account/create/', CreateAccountView.as_view(), name='create_account'),
     path('account/detail/', AccountDetailView.as_view(), name='account_detail'),
+    path('account/update/', UpdateAccountView.as_view(), name='update_account'),
     
     # ==========================================
     # API Route Template
