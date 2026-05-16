@@ -21,4 +21,5 @@ urlpatterns = [
     path("api/sys/", include("system.urls")),
     path("api/bel/", include("believer.urls")),
     path("api/don/", include("donate.urls")),
+    path("api/light/", include("light.urls")),
 ]
