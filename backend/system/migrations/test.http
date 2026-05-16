@@ -1,0 +1,15 @@
+# Create your tests here.
+POST http://127.0.0.1:8000/api/sys/lighting/create/
+Content-Type: application/json
+
+{
+    "Data": {
+        "Household_ID": "H001",
+        "Member_ID": "M001",
+        "Lamp_Type_IDs": [
+            "LIGHT",
+            "TAISUI"
+        ],
+        "Year": 2026
+    }
+}
