@@ -10,9 +10,8 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status # Django REST Framework 的核心
+from believer.models import Household_Information, Member_Information
 from .models import (
-    HouseholdInformationTable,
-    MemberInformationTable,
     LightingFeeTable,
     LightingRecordTable,
     LightingPaymentTable
@@ -41,8 +40,11 @@ class CreateLightingRecordAPIView(APIView):
         # 取得欄位，把資料拆出來，JSON資料原本都放在一起，現在把它拆出來
         household_id = data.get("Household_ID")
         member_id = data.get("Member_ID")
-        lamp_type_ids = data.get("Lamp_Type_IDs", [])
+        lamp_type = data.get("Lamp_Type")  # 單個燈種（新的前端方式）
+        lamp_type_ids = data.get("Lamp_Type_IDs", [])  # 保持相容舊方式
         year = data.get("Year")
+        amount = data.get("Amount", 0)  # 新增: 金額
+        notes = data.get("Notes", "")  # 新增: 備註
 
         # =====================================
         # 檢查 request.data 裡有沒有這個欄位
@@ -60,10 +62,10 @@ class CreateLightingRecordAPIView(APIView):
                 "Message": "Member_ID is required."
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        if not lamp_type_ids:# 確認有輸入燈種
+        if not lamp_type and not lamp_type_ids:# 確認有輸入燈種
             return Response({
                 "Status": "Error",
-                "Message": "Lamp_Type_IDs is required."
+                "Message": "Lamp_Type or Lamp_Type_IDs is required."
             }, status=status.HTTP_400_BAD_REQUEST)
 
         if not year: #確認有輸入年份
@@ -76,7 +78,7 @@ class CreateLightingRecordAPIView(APIView):
         # 查詢戶口(確認database 有沒有這筆資料)
         # =====================================
 
-        household = HouseholdInformationTable.objects.filter( # 避免重複點燈
+        household = Household_Information.objects.filter( # 避免重複點燈
             Household_ID=household_id
         ).first()
 
@@ -90,9 +92,9 @@ class CreateLightingRecordAPIView(APIView):
         # 查詢信徒
         # =====================================
 
-        member = MemberInformationTable.objects.filter(
+        member = Member_Information.objects.filter(
             Member_ID=member_id,
-            Household_ID=household
+            Household__Household_ID=household.Household_ID
         ).first()
 
         if not member:
@@ -106,20 +108,23 @@ class CreateLightingRecordAPIView(APIView):
         # =====================================
 
         created_records = []
+        
+        # 支援新舊兩種方式
+        lamp_types_to_create = [lamp_type] if lamp_type else lamp_type_ids
 
-        for lamp_type_id in lamp_type_ids:
+        for lamp_type_id in lamp_types_to_create:
 
-            lamp_type = LightingFeeTable.objects.filter(
+            lamp_type_obj = LightingFeeTable.objects.filter(
                 Lamp_Type_ID=lamp_type_id
             ).first()
 
-            if not lamp_type:
+            if not lamp_type_obj:
                 continue
 
             # 避免重複點燈，檢查這位信徒今年是否已點過這盞燈。
             exists = LightingRecordTable.objects.filter(
                 Member_ID=member,
-                Lamp_Type_ID=lamp_type,
+                Lamp_Type_ID=lamp_type_obj,
                 Year=year
             ).exists()
 
@@ -130,22 +135,26 @@ class CreateLightingRecordAPIView(APIView):
                 Lighting_Record_ID=str(uuid4()),
                 Household_ID=household,
                 Member_ID=member,
-                Lamp_Type_ID=lamp_type,
+                Lamp_Type_ID=lamp_type_obj,
                 Year=year,
-                Lamp_Lighting_Date=date.today()
+                Lamp_Lighting_Date=date.today(),
+                Amount=amount,  # 新增: 金額
+                Notes=notes,  # 新增: 備註
             )
 
             created_records.append({
                 "Lighting_Record_ID": record.Lighting_Record_ID,
-                "Lamp_Type": lamp_type.Lamp_Type,
-                "Price": lamp_type.Price
+                "Lamp_Type": lamp_type_obj.Lamp_Type,
+                "Price": lamp_type_obj.Price,
+                "Amount": record.Amount,
+                "Notes": record.Notes,
             })
 
         # =====================================
         # 計算總費用
         # =====================================
 
-        total_fee = calculate_total_fee(lamp_type_ids)
+        total_fee = calculate_total_fee(lamp_types_to_create)
 
         # =====================================
         # 回傳結果
@@ -223,7 +232,11 @@ class SearchLightingRecordAPIView(APIView):
                 "Lamp_Type": record.Lamp_Type_ID.Lamp_Type,
                 "Year": record.Year,
                 "Phone": record.Household_ID.phone,
-                "Is_Paid": record.is_paid # 新增回傳欄位
+                "Is_Paid": record.is_paid, # 新增回傳欄位
+                "Amount": record.Amount, # 新增: 金額
+                "Notes": record.Notes or "", # 新增: 備註
+                "Record_Creation_Time": record.Record_Creation_Time.isoformat() if record.Record_Creation_Time else "",
+                "Record_Updated_Time": record.Record_Updated_Time.isoformat() if record.Record_Updated_Time else "",
             })
 
         return Response({
@@ -299,6 +312,9 @@ class UpdateLightingRecordAPIView(APIView): # put
         year = data.get("Year") 
         member_id = data.get("Member_ID") 
         new_lamp_type_id = data.get("Lamp_Type_ID")
+        amount = data.get("Amount")  # 新增: 金額
+        is_paid = data.get("Is_Paid")  # 新增: 繳費狀態
+        notes = data.get("Notes")  # 新增: 備註
 
         # 查詢 record ， 去資料庫找 這筆點燈紀錄 ID、年份
         record = LightingRecordTable.objects.filter(
@@ -311,38 +327,48 @@ class UpdateLightingRecordAPIView(APIView): # put
                 "Message": "找不到該筆點燈紀錄"
             }, status=status.HTTP_404_NOT_FOUND)
 
-         # 3. 驗證身分：確保這筆紀錄真的屬於這位信徒
-        if record.Member_ID.Member_ID != member_id:
-            return Response({
-                "Status": "Error", 
-                "Message": "信徒身分不符，無法修改他人的紀錄"
-            }, status=status.HTTP_403_FORBIDDEN)
-        # 4. 驗證年份
-        if str(record.Year) != str(year):
-            return Response({"Status": "Error", "Message": "年份不符合"}, status=status.HTTP_400_BAD_REQUEST)
-        # 5. 查詢新燈種是否存在
-        lamp_type = LightingFeeTable.objects.filter(Lamp_Type_ID=new_lamp_type_id).first()
-        if not lamp_type:
-            return Response({"Status": "Error", "Message": "找不到該燈種"}, status=status.HTTP_404_NOT_FOUND)
+        # 若只有部分欄位要更新（例如只改金額或繳費狀態，不改燈種），則允許通過
+        if new_lamp_type_id:
+            # 3. 驗證身分：確保這筆紀錄真的屬於這位信徒
+            if record.Member_ID.Member_ID != member_id:
+                return Response({
+                    "Status": "Error", 
+                    "Message": "信徒身分不符，無法修改他人的紀錄"
+                }, status=status.HTTP_403_FORBIDDEN)
+            # 4. 驗證年份
+            if str(record.Year) != str(year):
+                return Response({"Status": "Error", "Message": "年份不符合"}, status=status.HTTP_400_BAD_REQUEST)
+            # 5. 查詢新燈種是否存在
+            lamp_type = LightingFeeTable.objects.filter(Lamp_Type_ID=new_lamp_type_id).first()
+            if not lamp_type:
+                return Response({"Status": "Error", "Message": "找不到該燈種"}, status=status.HTTP_404_NOT_FOUND)
 
-        # 檢查是否重複
-        exists = LightingRecordTable.objects.filter(
-            Member_ID=record.Member_ID,
-            Lamp_Type_ID=lamp_type,
-            Year=year
-        ).exclude(
-            Lighting_Record_ID=record.Lighting_Record_ID
-        ).exists()
+            # 檢查是否重複
+            exists = LightingRecordTable.objects.filter(
+                Member_ID=record.Member_ID,
+                Lamp_Type_ID=lamp_type,
+                Year=year
+            ).exclude(
+                Lighting_Record_ID=record.Lighting_Record_ID
+            ).exists()
 
-        # 如果重複，就回傳錯誤
-        if exists:
-            return Response({
-                "Status": "Error",
-                "Message": "This lamp has already been registered."
-            }, status=status.HTTP_400_BAD_REQUEST)
+            # 如果重複，就回傳錯誤
+            if exists:
+                return Response({
+                    "Status": "Error",
+                    "Message": "This lamp has already been registered."
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-        # 更新燈種
-        record.Lamp_Type_ID = lamp_type
+            # 更新燈種
+            record.Lamp_Type_ID = lamp_type
+
+        # 新增：允許更新其他欄位
+        if amount is not None:
+            record.Amount = amount
+        if is_paid is not None:
+            record.is_paid = is_paid
+        if notes is not None:
+            record.Notes = notes
 
         # 更新時間
         record.Record_Updated_Time = timezone.now()
@@ -354,8 +380,11 @@ class UpdateLightingRecordAPIView(APIView): # put
             "Message": "Lighting record updated successfully.",
             "Data": {
                 "Lighting_Record_ID": record.Lighting_Record_ID,
-                "Lamp_Type_ID": lamp_type.Lamp_Type_ID,
-                "Lamp_Type": lamp_type.Lamp_Type,
+                "Lamp_Type_ID": record.Lamp_Type_ID.Lamp_Type_ID if record.Lamp_Type_ID else None,
+                "Lamp_Type": record.Lamp_Type_ID.Lamp_Type if record.Lamp_Type_ID else None,
+                "Amount": record.Amount,
+                "Is_Paid": record.is_paid,
+                "Notes": record.Notes,
                 "Updated_Time": record.Record_Updated_Time
             }
         }, status=status.HTTP_200_OK)
@@ -434,8 +463,8 @@ class CreateLightingPaymentAPIView(APIView):
         
         # 2. 獲取住戶實例
         try:
-            household = HouseholdInformationTable.objects.get(Household_ID=household_id)
-        except HouseholdInformationTable.DoesNotExist:
+            household = Household_Information.objects.get(Household_ID=household_id)
+        except Household_Information.DoesNotExist:
             return Response({"error": "找不到指定住戶"}, status=status.HTTP_404_NOT_FOUND)
         
         # 3. 建立支付紀錄

@@ -116,30 +116,32 @@ WSGI_APPLICATION = "lumian.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# DATABASES = {
-#     "default": (
-#         _database_config_from_url(os.environ["DATABASE_URL"])
-#         if os.getenv("DATABASE_URL")
-#         else {
-#             "ENGINE": "django.db.backends.sqlite3",
-#             "NAME": BASE_DIR / "db.sqlite3",
-#         }
-#     )
-# }
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": "temple_management",
-        "USER": "root",
-        "PASSWORD": "",
-        "HOST": "127.0.0.1", 
-        "PORT": "3306",
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        # _database_config_from_url(os.environ["DATABASE_URL"])
+        # if os.getenv("DATABASE_URL")
+        # else {
+        #     "ENGINE": "django.db.backends.sqlite3",
+        #     "NAME": BASE_DIR / "db.sqlite3",
+        # }
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.mysql",
+#         "NAME": "temple_management",
+#         "USER": "root",
+#         "PASSWORD": "",
+#         "HOST": "127.0.0.1", 
+#         "PORT": "3306",
+#         "OPTIONS": {
+#             "charset": "utf8mb4",
+#             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+#         },
+#     }
+# }
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 

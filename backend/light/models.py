@@ -1,5 +1,6 @@
 import uuid
 from django.db import models
+from believer.models import Household_Information, Member_Information
 
 
 
@@ -8,86 +9,6 @@ from django.db import models
 class PrintStatus(models.TextChoices):
     NOT_PRINTED = 'not_printed', 'Not Printed'
     PRINTED = 'printed', 'Printed'
-
-# ==========================================
-# 戶籍表
-# ==========================================
-
-class HouseholdInformationTable(models.Model):
-
-    Household_ID = models.CharField(
-        max_length=50,
-        primary_key=True
-    )
-
-    Head_of_Household_ID = models.OneToOneField(
-        'MemberInformationTable',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
-
-    Postal_code = models.IntegerField(
-        null=True,
-        blank=True
-    )
-
-    Address = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True
-    )
-
-    phone = models.CharField(
-        max_length=20,
-        null=True,
-        blank=True
-    )
-
-    def __str__(self):
-        return self.Household_ID
-
-
-# ==========================================
-# 成員表
-# ==========================================
-
-class MemberInformationTable(models.Model):
-
-    Member_ID = models.CharField(
-        max_length=50,
-        primary_key=True
-    )
-
-    Household_ID = models.ForeignKey(
-        HouseholdInformationTable,
-        on_delete=models.CASCADE
-    )
-
-    name = models.CharField(
-        max_length=100
-    )
-
-    Lunar_Birthday = models.DateField(
-        null=True,
-        blank=True
-    )
-
-    Gregorian_Birthday = models.DateField(
-        null=True,
-        blank=True
-    )
-
-    Profile_Creation_Time = models.DateTimeField(
-        auto_now_add=True
-    )
-
-    Profile_Update_Time = models.DateTimeField(
-        auto_now=True
-    )
-
-    def __str__(self):
-        return self.name
 
 
 # ==========================================
@@ -123,12 +44,12 @@ class LightingRecordTable(models.Model):
     )
 
     Household_ID = models.ForeignKey(
-        HouseholdInformationTable,
+        Household_Information,
         on_delete=models.CASCADE
     )
 
     Member_ID = models.ForeignKey(
-        MemberInformationTable,
+        Member_Information,
         on_delete=models.CASCADE
     )
 
@@ -169,6 +90,19 @@ class LightingRecordTable(models.Model):
         verbose_name="關聯繳費紀錄"
     )
 
+    # 新增: 點燈金額與備註
+    Amount = models.IntegerField(
+        default=0,
+        verbose_name="點燈金額"
+    )
+
+    Notes = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name="備註"
+    )
+
     class Meta:
         unique_together = (
             'Member_ID',
@@ -182,12 +116,16 @@ class LightingRecordTable(models.Model):
 
 
 #==========================================
-# (新增表格)結算紀錄表 (LGT-004)
+# 結算紀錄表
 # ==========================================
 
 class LightingPaymentTable(models.Model):
     Payment_ID = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    Household_ID = models.ForeignKey(HouseholdInformationTable, on_delete=models.CASCADE, verbose_name="所屬住戶")
+    Household_ID = models.ForeignKey(
+        Household_Information, 
+        on_delete=models.CASCADE, 
+        verbose_name="所屬住戶"
+    )
     Payment_Time = models.DateTimeField(auto_now_add=True, verbose_name="繳費時間")
     GuangMing_Count = models.IntegerField(default=0, verbose_name="光明燈數量")
     TaiSui_Count = models.IntegerField(default=0, verbose_name="太歲燈數量")

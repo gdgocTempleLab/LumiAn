@@ -27,7 +27,7 @@ def _serialize_member(member):
     """序列化單位成員"""
     return {
         "Member_ID": member.Member_ID,
-        "Household_ID": member.Household_ID,
+        "Household_ID": member.Household.Household_ID if member.Household else None,
         "name": member.name,
         "Lunar_Birthday": member.Lunar_Birthday,
         "Gregorian_Birthday": member.Gregorian_Birthday,
@@ -45,12 +45,11 @@ def _serialize_household(household, include_members=True):
         "Postal_code": household.Postal_code,
         "Address": household.Address,
         "phone": household.phone,
+        "mobile": household.mobile,
     }
 
     if include_members:
-        members = Member_Information.objects.filter(
-            Household_ID=household.Household_ID
-        ).order_by("Member_ID")
+        members = household.members.all().order_by("Member_ID")
         data["Members"] = [_serialize_member(m) for m in members]
 
     return data
@@ -66,6 +65,7 @@ class HouseholdCreateView(APIView):
         postal_code = data.get("Postal_code")
         address = data.get("Address")
         phone = data.get("phone")
+        mobile = data.get("mobile", "")
 
         if not all([household_id, postal_code, address, phone]):
             return _response_error(
@@ -81,6 +81,7 @@ class HouseholdCreateView(APIView):
                 Postal_code=postal_code,
                 Address=address,
                 phone=phone,
+                mobile=mobile,
             )
 
             return Response(
@@ -127,12 +128,12 @@ class MemberCreateView(APIView):
                 # 如果是戶長，清除該戶之前的戶長標籤
                 if is_head:
                     Member_Information.objects.filter(
-                        Household_ID=household_id, isHeadOfHousehold=True
+                        Household=household, isHeadOfHousehold=True
                     ).update(isHeadOfHousehold=False)
 
                 member = Member_Information.objects.create(
                     Member_ID=member_id,
-                    Household_ID=household_id,
+                    Household=household,
                     name=name,
                     Lunar_Birthday=lunar_birthday,
                     Gregorian_Birthday=gregorian_birthday,
@@ -178,6 +179,7 @@ class HouseholdUpdateView(APIView):
             ("Postal_code", "Postal_code"),
             ("Address", "Address"),
             ("phone", "phone"),
+            ("mobile", "mobile"),
         ]:
             if source_key in data:
                 setattr(household, field, data.get(source_key))
@@ -198,6 +200,26 @@ class HouseholdUpdateView(APIView):
         )
 
 
+# BEL-002-1: 取得戶籍詳細資料
+class HouseholdDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request, household_id):
+        household = Household_Information.objects.prefetch_related("members").filter(
+            Household_ID=household_id
+        ).first()
+        if not household:
+            return _response_error("Household not found.", status.HTTP_404_NOT_FOUND)
+
+        return Response(
+            {
+                "Status": "Success",
+                "Data": {"Household": _serialize_household(household)},
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 # BEL-002-2: 編輯信徒資料-更新戶員資料
 class MemberUpdateView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
@@ -210,8 +232,14 @@ class MemberUpdateView(APIView):
         if not member_id or not household_id:
             return _response_error("Member_ID and Household_ID are required.")
 
+        household = Household_Information.objects.filter(
+            Household_ID=household_id
+        ).first()
+        if not household:
+            return _response_error("Household not found.", status.HTTP_404_NOT_FOUND)
+
         member = Member_Information.objects.filter(
-            Member_ID=member_id, Household_ID=household_id
+            Member_ID=member_id, Household=household
         ).first()
         if not member:
             return _response_error("Member not found.", status.HTTP_404_NOT_FOUND)
@@ -232,11 +260,10 @@ class MemberUpdateView(APIView):
             if is_head and not member.isHeadOfHousehold:
                 # 清除其他戶員的戶長標籤
                 Member_Information.objects.filter(
-                    Household_ID=household_id, isHeadOfHousehold=True
+                    Household=household, isHeadOfHousehold=True
                 ).exclude(Member_ID=member_id).update(isHeadOfHousehold=False)
                 
                 # 更新戶籍的戶長 ID
-                household = Household_Information.objects.get(Household_ID=household_id)
                 household.Head_of_Household_ID = member_id
                 household.save()
 
@@ -278,7 +305,7 @@ class HouseholdDeleteView(APIView):
         try:
             with transaction.atomic():
                 # 刪除該戶的所有成員
-                Member_Information.objects.filter(Household_ID=household_id).delete()
+                Member_Information.objects.filter(Household=household).delete()
                 # 刪除該戶
                 household.delete()
 
@@ -306,8 +333,14 @@ class MemberDeleteView(APIView):
         if not member_id or not household_id:
             return _response_error("Member_ID and Household_ID are required.")
 
+        household = Household_Information.objects.filter(
+            Household_ID=household_id
+        ).first()
+        if not household:
+            return _response_error("Household not found.", status.HTTP_404_NOT_FOUND)
+
         member = Member_Information.objects.filter(
-            Member_ID=member_id, Household_ID=household_id
+            Member_ID=member_id, Household=household
         ).first()
         if not member:
             return _response_error("Member not found.", status.HTTP_404_NOT_FOUND)
@@ -331,28 +364,30 @@ class BelieverSearchView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
-        head_name = request.query_params.get("head_name", "").strip()
-        member_name = request.query_params.get("member_name", "").strip()
+        search_method = request.query_params.get("searchMethod", "").strip()
+        search_text = request.query_params.get("searchText", "").strip()
 
         households = Household_Information.objects.prefetch_related(
-            "member_information_set"
+            "members"
         ).all()
 
-        # 按戶長名稱篩選
-        if head_name:
-            households = households.filter(Head_of_Household_ID__isnull=False)
-            # 從成員表中找到符合的戶長
-            head_members = Member_Information.objects.filter(
-                name__icontains=head_name, isHeadOfHousehold=True
-            ).values_list("Household_ID", flat=True)
-            households = households.filter(Household_ID__in=head_members)
+        # 按市話篩選
+        if search_method == "phone" and search_text:
+            households = households.filter(phone__icontains=search_text)
 
-        # 按成員名稱篩選
-        if member_name:
-            member_households = Member_Information.objects.filter(
-                name__icontains=member_name
-            ).values_list("Household_ID", flat=True).distinct()
-            households = households.filter(Household_ID__in=member_households)
+        # 按手機篩選 - 從成員表中查詢
+        elif search_method == "mobile" and search_text:
+            households = households.filter(mobile__icontains=search_text)
+
+        # 按戶長名稱篩選
+        elif search_method == "name" and search_text:
+            head_households = Member_Information.objects.filter(
+                name__icontains=search_text,
+                isHeadOfHousehold=True,
+            ).values_list("Household__Household_ID", flat=True).distinct()
+            households = households.filter(
+                Household_ID__in=head_households,
+            )
 
         household_list = [_serialize_household(h) for h in households]
 

@@ -9,9 +9,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-        ('system', '0001_initial'),
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
@@ -39,7 +37,7 @@ class Migration(migrations.Migration):
                 ('GuangMing_Count', models.IntegerField(default=0, verbose_name='光明燈數量')),
                 ('TaiSui_Count', models.IntegerField(default=0, verbose_name='太歲燈數量')),
                 ('Total_Amount', models.IntegerField(default=0, verbose_name='總金額')),
-                ('Household_ID', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='system.householdinformationtable', verbose_name='所屬住戶')),
+                ('Household_ID', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='light.householdinformationtable', verbose_name='所屬住戶')),
             ],
             options={
                 'db_table': 'lighting_payment_table',
