@@ -3,7 +3,7 @@ import { reactive } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
-  search: [params: { searchMethod: string; searchText: string }]
+  search: [params: { searchMethod: string; searchText?: string }]
 }>()
 
 const form = reactive({
@@ -12,7 +12,10 @@ const form = reactive({
 })
 
 function handleSearch() {
-  emit('search', { ...form })
+  emit('search', {
+    searchMethod: form.searchMethod,
+    searchText: form.searchText,
+  })
 }
 
 const searchMethods = [
@@ -20,12 +23,6 @@ const searchMethods = [
   { value: 'mobile', label: '電話（手機）' },
   { value: 'name', label: '戶長姓名' },
 ]
-
-const placeholders: Record<string, string> = {
-  phone: '請輸入市話號碼',
-  mobile: '請輸入手機號碼',
-  name: '請輸入戶長姓名',
-}
 </script>
 
 <template>
@@ -50,10 +47,11 @@ const placeholders: Record<string, string> = {
       <div class="search-input-row">
         <el-input
           v-model="form.searchText"
-          :placeholder="placeholders[form.searchMethod]"
+          :placeholder="form.searchMethod === 'mobile' ? '請輸入手機號碼' : form.searchMethod === 'phone' ? '請輸入市話號碼' : '請輸入戶長姓名'"
           class="search-input"
           @keyup.enter="handleSearch"
         />
+
         <el-button class="search-btn" @click="handleSearch">
           <el-icon><Search /></el-icon>
           查詢
@@ -86,6 +84,7 @@ const placeholders: Record<string, string> = {
 .search-input-row {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 .search-input {

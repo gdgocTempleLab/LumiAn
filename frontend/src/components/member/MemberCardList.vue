@@ -3,6 +3,7 @@ import MemberCard from './MemberCard.vue'
 import type { CalendarType, MemberRole } from '@/types'
 
 interface MemberFormData {
+  memberId?: string
   name: string
   role: MemberRole
   birthday: {
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 
 function addMember() {
   const newMembers = [...props.modelValue, {
+    memberId: '',
     name: '',
     role: 'member' as MemberRole,
     birthday: {

@@ -5,6 +5,7 @@ import type { CalendarType, MemberRole } from '@/types'
 
 const props = defineProps<{
   modelValue: {
+    memberId?: string
     name: string
     role: MemberRole
     birthday: {
@@ -27,6 +28,7 @@ const form = reactive({ ...props.modelValue })
 
 watch(form, () => {
   emit('update:modelValue', {
+    memberId: form.memberId,
     name: form.name,
     role: form.role,
     birthday: { ...form.birthday },

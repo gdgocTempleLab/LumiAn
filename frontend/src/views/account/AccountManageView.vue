@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import PageTitleBar from '@/components/layout/PageTitleBar.vue'
 import { useAuthStore } from '@/stores/auth'
+import { changePasswordApi } from '@/api/auth'
 
 const authStore = useAuthStore()
 
@@ -42,11 +43,19 @@ async function handleSave() {
   } catch {
     return
   }
-  // Mock: 密碼變更成功
-  ElMessage.success('密碼變更成功')
-  form.currentPassword = ''
-  form.newPassword = ''
-  form.confirmPassword = ''
+  try {
+    const res = await changePasswordApi(form.currentPassword, form.newPassword)
+    if (res.data.Status === 'Success') {
+      ElMessage.success('密碼變更成功')
+      form.currentPassword = ''
+      form.newPassword = ''
+      form.confirmPassword = ''
+    } else {
+      ElMessage.error(res.data.Message || '密碼變更失敗')
+    }
+  } catch {
+    ElMessage.error('目前密碼錯誤或伺服器錯誤')
+  }
 }
 </script>
 

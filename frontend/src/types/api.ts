@@ -11,3 +11,9 @@ export interface PaginatedResponse<T> {
   page: number
   pageSize: number
 }
+
+export interface BackendResponse<T = unknown> {
+  Status: 'Success' | 'Error'
+  Message?: string
+  Data?: T
+}

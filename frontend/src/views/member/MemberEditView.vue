@@ -1,24 +1,51 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Phone, Iphone, Location, Calendar, Plus, Minus } from '@element-plus/icons-vue'
+import { User, Phone } from '@element-plus/icons-vue'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import PageTitleBar from '@/components/layout/PageTitleBar.vue'
-import MemberSearchForm from '@/components/member/MemberSearchForm.vue'
-import HouseholdTable from '@/components/member/HouseholdTable.vue'
+import HouseholdForm from '@/components/member/HouseholdForm.vue'
+import MemberCardList from '@/components/member/MemberCardList.vue'
 import { useMemberStore } from '@/stores/member'
-import type { Household, CalendarType, MemberRole } from '@/types'
+import type { CalendarType, MemberRole } from '@/types'
 
+type AddressForm = {
+  countyCode: string
+  countyName: string
+  districtCode: string
+  districtName: string
+  villageName: string
+  detail: string
+}
+
+type EditableMember = {
+  memberId?: string
+  name: string
+  role: MemberRole
+  birthday: {
+    calendarType: CalendarType
+    year: number | undefined
+    month: number | undefined
+    day: number | undefined
+  }
+}
+
+const route = useRoute()
 const router = useRouter()
 const memberStore = useMemberStore()
-const searched = ref(false)
-const editing = ref(false)
 
-const emptyAddress = {
-  countyCode: '', countyName: '', districtCode: '',
-  districtName: '', villageName: '', detail: '',
+const emptyAddress: AddressForm = {
+  countyCode: '',
+  countyName: '',
+  districtCode: '',
+  districtName: '',
+  villageName: '',
+  detail: '',
 }
+
+const householdId = ref('')
+const pageReady = ref(false)
 
 const householdData = reactive({
   phoneAreaCode: '',
@@ -29,128 +56,192 @@ const householdData = reactive({
   residenceAddress: { ...emptyAddress },
 })
 
-const members = ref<Array<{
-  name: string
-  role: MemberRole
-  birthday: { calendarType: CalendarType; year: number | undefined; month: number | undefined; day: number | undefined }
-}>>([])
+const members = ref<EditableMember[]>([createEmptyMember()])
+const originalMemberIds = ref<string[]>([])
 
-let selectedId = 0
-
-async function handleSearch(params: { searchMethod: string; searchText: string }) {
-  await memberStore.searchHouseholds({
-    searchMethod: params.searchMethod as 'phone' | 'name' | 'mobile',
-    searchText: params.searchText,
-  })
-  searched.value = true
-  editing.value = false
-}
-
-function handleSelect(household: Household) {
-  selectedId = household.id
-  householdData.phoneAreaCode = household.phoneAreaCode
-  householdData.phoneNumber = household.phoneNumber
-  householdData.mobile = household.mobile
-  householdData.sameAsRegistered = household.sameAsRegistered
-  householdData.registeredAddress = { ...household.registeredAddress }
-  householdData.residenceAddress = { ...household.residenceAddress }
-
-  members.value = household.members.map((m) => ({
-    name: m.name,
-    role: m.role,
-    birthday: {
-      calendarType: m.birthday.calendarType,
-      year: m.birthday.year,
-      month: m.birthday.month,
-      day: m.birthday.day,
-    },
-  }))
-
-  editing.value = true
-}
-
-function handleCancel() {
-  editing.value = false
-}
-
-function addMember() {
-  members.value.push({
+function createEmptyMember(role: MemberRole = 'member', memberId = ''): EditableMember {
+  return {
+    memberId,
     name: '',
-    role: 'member',
+    role,
     birthday: {
       calendarType: 'solar',
       year: undefined,
       month: undefined,
       day: undefined,
     },
-  })
-}
-
-function removeMember() {
-  if (members.value.length > 1) {
-    members.value.pop()
   }
 }
 
-function getDisplayPhone() {
-  if (householdData.phoneAreaCode && householdData.phoneNumber) {
-    return `${householdData.phoneAreaCode}-${householdData.phoneNumber}`
+function cloneAddress(source?: Partial<AddressForm> | null): AddressForm {
+  return {
+    countyCode: source?.countyCode || '',
+    countyName: source?.countyName || '',
+    districtCode: source?.districtCode || '',
+    districtName: source?.districtName || '',
+    villageName: source?.villageName || '',
+    detail: source?.detail || '',
   }
-  return '-'
 }
 
-function getDisplayAddress() {
+function applyHouseholdData() {
+  const current = memberStore.currentHousehold
+  if (!current) return false
+
+  householdId.value = String(current.id)
+  householdData.phoneAreaCode = current.phoneAreaCode
+  householdData.phoneNumber = current.phoneNumber
+  householdData.mobile = current.mobile
+  householdData.sameAsRegistered = current.sameAsRegistered
+  householdData.registeredAddress = cloneAddress(current.registeredAddress)
+  householdData.residenceAddress = cloneAddress(current.residenceAddress)
+
+  const nextMembers = current.members.length > 0
+    ? current.members.map((m) => ({
+        memberId: String(m.id),
+        name: m.name,
+        role: m.role,
+        birthday: {
+          calendarType: m.birthday.calendarType,
+          year: m.birthday.year,
+          month: m.birthday.month,
+          day: m.birthday.day,
+        },
+      }))
+    : [createEmptyMember()]
+
+  members.value = nextMembers
+  originalMemberIds.value = current.members.map((m) => String(m.id))
+  pageReady.value = true
+  return true
+}
+
+async function loadHousehold() {
+  pageReady.value = false
+
+  const householdIdParam = Array.isArray(route.params.householdId)
+    ? route.params.householdId[0]
+    : route.params.householdId
+
+  const targetId = householdIdParam || memberStore.currentHousehold?.id
+  if (!targetId) {
+    ElMessage.error('缺少戶口編號，無法載入編輯頁面')
+    router.push({ name: 'MemberList' })
+    return
+  }
+
+  const loaded = await memberStore.loadHousehold(targetId)
+  if (!loaded) {
+    ElMessage.error('找不到指定戶口資料')
+    router.push({ name: 'MemberList' })
+    return
+  }
+
+  applyHouseholdData()
+}
+
+watch(
+  () => route.params.householdId,
+  () => {
+    void loadHousehold()
+  },
+  { immediate: true },
+)
+
+const headName = computed(() => members.value.find((m) => m.role === 'head')?.name || '-')
+
+function getHouseholdAddressText() {
   const addr = householdData.registeredAddress
-  return `${addr.countyName}${addr.districtName}${addr.villageName || ''}${addr.detail}`
-}
-
-function getDisplayBirthday(member: typeof members.value[0], type: 'solar' | 'lunar') {
-  const b = member.birthday
-  if (b.calendarType === type && b.year && b.month && b.day) {
-    return `${b.year}/${String(b.month).padStart(2, '0')}/${String(b.day).padStart(2, '0')}`
-  }
-  return ''
-}
-
-function getRoleLabel(role: MemberRole) {
-  return role === 'head' ? '戶長' : '戶員'
+  return `${addr.countyName}${addr.districtName}${addr.villageName || ''}${addr.detail}` || '-'
 }
 
 async function handleSave() {
+  if (!householdId.value) return
+
+  const submittedMembers = members.value.filter((member) => member.name.trim())
+  if (submittedMembers.length === 0) {
+    ElMessage.warning('請至少保留一位戶員資料')
+    return
+  }
+
+  const hasInvalidMember = submittedMembers.some((member) => {
+    const birthday = member.birthday
+    return !member.name.trim() || !birthday.year || !birthday.month || !birthday.day
+  })
+  if (hasInvalidMember) {
+    ElMessage.warning('請完整填寫所有戶員姓名與誕辰資料')
+    return
+  }
+
   try {
-    await memberStore.updateHousehold(selectedId, {
+    await memberStore.updateHousehold(householdId.value, {
       phoneAreaCode: householdData.phoneAreaCode,
       phoneNumber: householdData.phoneNumber,
       mobile: householdData.mobile,
       sameAsRegistered: householdData.sameAsRegistered,
       registeredAddress: {
         countyCode: householdData.registeredAddress.countyCode,
+        countyName: householdData.registeredAddress.countyName,
         districtCode: householdData.registeredAddress.districtCode,
+        districtName: householdData.registeredAddress.districtName,
+        villageName: householdData.registeredAddress.villageName,
         detail: householdData.registeredAddress.detail,
       },
       residenceAddress: {
         countyCode: householdData.residenceAddress.countyCode,
+        countyName: householdData.residenceAddress.countyName,
         districtCode: householdData.residenceAddress.districtCode,
+        districtName: householdData.residenceAddress.districtName,
+        villageName: householdData.residenceAddress.villageName,
         detail: householdData.residenceAddress.detail,
       },
-      members: members.value
-        .filter((m) => m.name)
-        .map((m) => ({
-          name: m.name,
-          role: m.role,
-          birthday: {
-            calendarType: m.birthday.calendarType,
-            year: m.birthday.year || 2000,
-            month: m.birthday.month || 1,
-            day: m.birthday.day || 1,
-          },
-        })),
     })
+
+    const currentIds = new Set(submittedMembers.map((member) => member.memberId).filter(Boolean) as string[])
+    const removedIds = originalMemberIds.value.filter((id) => !currentIds.has(id))
+    const nonHeads = submittedMembers.filter((member) => member.role !== 'head')
+    const heads = submittedMembers.filter((member) => member.role === 'head')
+
+    for (const memberId of removedIds) {
+      await memberStore.removeMember(memberId, householdId.value)
+    }
+
+    const syncMember = async (member: EditableMember) => {
+      const payload = {
+        name: member.name,
+        role: member.role,
+        birthday: {
+          calendarType: member.birthday.calendarType,
+          year: member.birthday.year || 2000,
+          month: member.birthday.month || 1,
+          day: member.birthday.day || 1,
+        },
+      }
+
+      if (member.memberId) {
+        await memberStore.updateMember(member.memberId, householdId.value, payload)
+      } else {
+        await memberStore.addMemberToHousehold(householdId.value, payload)
+      }
+    }
+
+    for (const member of nonHeads) {
+      await syncMember(member)
+    }
+    for (const member of heads) {
+      await syncMember(member)
+    }
+
+    await memberStore.loadHousehold(householdId.value)
+    applyHouseholdData()
     ElMessage.success('更新成功')
-    router.push('/')
   } catch {
     ElMessage.error('更新失敗')
   }
+}
+
+function handleCancel() {
+  router.push({ name: 'MemberList' })
 }
 </script>
 
@@ -158,104 +249,58 @@ async function handleSave() {
   <div class="member-edit-page">
     <AppHeader compact />
     <PageTitleBar
-      title="信徒資料"
+      title="編輯信徒資料"
       :show-save="true"
       :show-cancel="true"
-      :save-disabled="!editing"
-      :cancel-disabled="!editing"
+      :save-disabled="!pageReady || memberStore.loading"
+      :cancel-disabled="memberStore.loading"
       :cancel-go-back="false"
-      :loading="memberStore.loading"
+      :loading="memberStore.loading && !pageReady"
       @save="handleSave"
       @cancel="handleCancel"
     />
 
     <main class="edit-content">
-      <MemberSearchForm @search="handleSearch" />
+      <section v-if="pageReady" class="summary-card">
+        <div class="summary-item">
+          <span class="summary-label">戶口編號</span>
+          <strong>{{ householdId }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">戶長</span>
+          <strong>{{ headName }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">戶員數</span>
+          <strong>{{ members.length }}</strong>
+        </div>
+        <div class="summary-item summary-address">
+          <span class="summary-label">地址</span>
+          <strong>{{ getHouseholdAddressText() }}</strong>
+        </div>
+      </section>
 
-      <div v-if="searched" class="result-card">
-        <h3 class="card-title">查詢結果（請選擇欲編輯之戶口）</h3>
-        <HouseholdTable
-          :data="memberStore.households"
-          :loading="memberStore.loading"
-          @select="handleSelect"
-        />
-      </div>
-
-      <div v-if="editing" class="household-data-card">
-        <div class="card-header-row">
-          <h3 class="card-title">戶口資料</h3>
-          <div class="card-actions">
-            <el-button class="add-member-btn" @click="addMember">
-              <el-icon><Plus /></el-icon> 新增戶員
-            </el-button>
-            <el-button class="remove-member-btn" @click="removeMember">
-              <el-icon><Minus /></el-icon> 刪除戶員
-            </el-button>
+      <section class="form-columns" v-loading="memberStore.loading && !pageReady">
+        <div class="column-left">
+          <div class="section-card">
+            <div class="section-title-row">
+              <h3 class="section-title"><el-icon><Phone /></el-icon> 戶籍資訊</h3>
+              <span class="section-subtitle">可直接修改電話與地址</span>
+            </div>
+            <HouseholdForm v-model="householdData" />
           </div>
         </div>
 
-        <el-table :data="[householdData]" class="info-table">
-          <el-table-column min-width="180">
-            <template #header>
-              <span class="column-header"><el-icon><Phone /></el-icon> 電話（市話）</span>
-            </template>
-            <template #default>
-              {{ getDisplayPhone() }}
-            </template>
-          </el-table-column>
-          <el-table-column min-width="160">
-            <template #header>
-              <span class="column-header"><el-icon><Iphone /></el-icon> 電話（手機）</span>
-            </template>
-            <template #default>
-              {{ householdData.mobile || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column min-width="300">
-            <template #header>
-              <span class="column-header"><el-icon><Location /></el-icon> 地址</span>
-            </template>
-            <template #default>
-              {{ getDisplayAddress() }}
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <el-table :data="members" class="info-table members-table">
-          <el-table-column min-width="120">
-            <template #header>
-              <span class="column-header"><el-icon><User /></el-icon> 姓名</span>
-            </template>
-            <template #default="{ row }">
-              {{ row.name || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column min-width="100">
-            <template #header>
-              <span class="column-header"><el-icon><User /></el-icon> 身份</span>
-            </template>
-            <template #default="{ row }">
-              {{ getRoleLabel(row.role) }}
-            </template>
-          </el-table-column>
-          <el-table-column min-width="160">
-            <template #header>
-              <span class="column-header"><el-icon><Calendar /></el-icon> 國曆誕辰</span>
-            </template>
-            <template #default="{ row }">
-              {{ getDisplayBirthday(row, 'solar') }}
-            </template>
-          </el-table-column>
-          <el-table-column min-width="160">
-            <template #header>
-              <span class="column-header"><el-icon><Calendar /></el-icon> 農曆誕辰</span>
-            </template>
-            <template #default="{ row }">
-              {{ getDisplayBirthday(row, 'lunar') }}
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+        <div class="column-right">
+          <div class="section-card">
+            <div class="section-title-row">
+              <h3 class="section-title"><el-icon><User /></el-icon> 戶員資料</h3>
+              <span class="section-subtitle">可新增、刪除與修改戶長/戶員</span>
+            </div>
+            <MemberCardList v-model="members" />
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 </template>
@@ -267,90 +312,83 @@ async function handleSave() {
 }
 
 .edit-content {
-  max-width: 1000px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 32px 40px;
+  padding: 32px 40px 56px;
 }
 
-.result-card {
+.summary-card,
+.section-card {
   background: white;
   border: 1px solid $temple-border-light;
-  border-radius: 8px;
-  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03);
+}
+
+.summary-card {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  padding: 18px 20px;
   margin-bottom: 20px;
 }
 
-.card-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: $temple-text-dark;
-  margin-bottom: 16px;
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.household-data-card {
-  background: white;
-  border: 1px solid $temple-border-light;
-  border-radius: 8px;
+.summary-label,
+.section-subtitle {
+  font-size: 12px;
+  color: $temple-text-muted;
+}
+
+.summary-address {
+  grid-column: span 2;
+}
+
+.form-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.section-card {
   padding: 20px;
 }
 
-.card-header-row {
+.section-title-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.card-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.add-member-btn {
-  color: $temple-gold-primary;
-  border: 1px solid $temple-gold-primary;
-  background: transparent;
-  border-radius: 20px;
-
-  &:hover,
-  &:focus {
-    color: $temple-gold-dark;
-    border-color: $temple-gold-dark;
-    background: transparent;
-  }
-}
-
-.remove-member-btn {
-  color: #F56C6C;
-  border: 1px solid #F56C6C;
-  background: transparent;
-  border-radius: 20px;
-
-  &:hover,
-  &:focus {
-    color: #e04040;
-    border-color: #e04040;
-    background: transparent;
-  }
-}
-
-.info-table {
-  margin-bottom: 0;
-
-  :deep(.el-table__header th) {
-    background: #fafafa;
-    font-weight: normal;
-    color: $temple-text-dark;
-  }
-}
-
-.members-table {
-  margin-top: 16px;
-}
-
-.column-header {
+.section-title {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-size: 16px;
+  color: $temple-text-dark;
+  margin: 0;
+}
+
+.column-left,
+.column-right {
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .summary-card,
+  .form-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-address {
+    grid-column: span 1;
+  }
 }
 </style>

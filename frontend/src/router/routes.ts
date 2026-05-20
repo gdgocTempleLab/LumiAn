@@ -21,10 +21,11 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: '建立信徒資料' },
   },
   {
-    path: '/member/edit',
+    path: '/member/edit/:householdId?',
     name: 'MemberEdit',
     component: () => import('@/views/member/MemberEditView.vue'),
     meta: { requiresAuth: true, title: '編輯信徒資料' },
+    props: true,
   },
   {
     path: '/member/delete',

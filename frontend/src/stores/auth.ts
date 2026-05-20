@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { loginApi, logoutApi } from '@/api/auth'
+import { loginApi } from '@/api/auth'
 import type { User } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -13,21 +13,18 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(account: string, password: string) {
     loading.value = true
     try {
-      const res = await loginApi({ account, password })
-      token.value = res.data.token
-      user.value = res.data.user
-      localStorage.setItem('auth_token', res.data.token)
+      const res = await loginApi(account, password)
+      const accessToken = res.data.Data?.AccessToken
+      if (!accessToken) throw new Error('登入失敗')
+      token.value = accessToken
+      localStorage.setItem('auth_token', accessToken)
     } finally {
       loading.value = false
     }
   }
 
-  async function logout() {
-    try {
-      await logoutApi()
-    } finally {
-      clearAuth()
-    }
+  function logout() {
+    clearAuth()
   }
 
   function clearAuth() {

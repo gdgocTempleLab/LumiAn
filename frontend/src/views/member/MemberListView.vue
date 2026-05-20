@@ -12,7 +12,7 @@ const router = useRouter()
 const memberStore = useMemberStore()
 const searched = ref(false)
 
-async function handleSearch(params: { searchMethod: string; searchText: string }) {
+async function handleSearch(params: { searchMethod: string; searchText?: string }) {
   await memberStore.searchHouseholds({
     searchMethod: params.searchMethod as 'phone' | 'name' | 'mobile',
     searchText: params.searchText,
@@ -22,7 +22,7 @@ async function handleSearch(params: { searchMethod: string; searchText: string }
 
 function handleEdit(household: Household) {
   memberStore.currentHousehold = household
-  router.push('/member/edit')
+  router.push({ name: 'MemberEdit', params: { householdId: household.id } })
 }
 
 function handleDelete(household: Household) {
