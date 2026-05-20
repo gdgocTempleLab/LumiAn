@@ -6,6 +6,7 @@ import AppHeader from '@/components/layout/AppHeader.vue'
 import PageTitleBar from '@/components/layout/PageTitleBar.vue'
 import HouseholdTable from '@/components/member/HouseholdTable.vue'
 import HouseholdLampInfoCard from '@/components/lamp/HouseholdLampInfoCard.vue'
+import MemberLampStatusDialog from '@/components/lamp/MemberLampStatusDialog.vue'
 import LampHistoryDialog from '@/components/lamp/LampHistoryDialog.vue'
 import { useMemberStore } from '@/stores/member'
 import { useLampStore } from '@/stores/lamp'
@@ -17,6 +18,8 @@ const lampStore = useLampStore()
 const searched = ref(false)
 const selectedHousehold = ref(false)
 const historyVisible = ref(false)
+const memberDialogVisible = ref(false)
+const selectedMemberId = ref<number | null>(null)
 
 const currentYear = new Date().getFullYear()
 const year = ref(currentYear)
@@ -49,10 +52,9 @@ async function handleSearch() {
 
 async function handleSelect(household: Household) {
   lampStore.selectedYear = year.value
-  await Promise.all([
-    memberStore.loadHousehold(household.id),
-    lampStore.loadHouseholdLamps(household.id),
-  ])
+  await memberStore.loadHousehold(household.id)
+  const phone = [household.phoneAreaCode, household.phoneNumber].filter(Boolean).join('-')
+  await lampStore.loadHouseholdLamps(household.id, phone)
   selectedHousehold.value = true
 }
 
@@ -65,6 +67,11 @@ async function handleHistory() {
     await lampStore.loadLampHistory(memberStore.currentHousehold.id)
   }
   historyVisible.value = true
+}
+
+function handleEditMember(memberId: number) {
+  selectedMemberId.value = memberId
+  memberDialogVisible.value = true
 }
 </script>
 
@@ -129,6 +136,20 @@ async function handleHistory() {
         :household-lamps="lampStore.householdLamps"
         @print="handlePrint"
         @history="handleHistory"
+        @edit-member="handleEditMember"
+      />
+
+      <MemberLampStatusDialog
+        v-model:modelValue="memberDialogVisible"
+        :member-id="selectedMemberId"
+        :year="year"
+        :household-id="memberStore.currentHousehold?.id"
+        @saved="async () => {
+          if (memberStore.currentHousehold) {
+            const phone = [memberStore.currentHousehold.phoneAreaCode, memberStore.currentHousehold.phoneNumber].filter(Boolean).join('-')
+            await lampStore.loadHouseholdLamps(memberStore.currentHousehold.id, phone)
+          }
+        }"
       />
     </main>
 

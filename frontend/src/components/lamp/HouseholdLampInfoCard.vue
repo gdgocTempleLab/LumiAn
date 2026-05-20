@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { User, Phone, Iphone, OfficeBuilding, Document, Timer, SuccessFilled, RemoveFilled } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { User, Phone, Iphone, OfficeBuilding, Document, Timer, SuccessFilled, RemoveFilled, Edit } from '@element-plus/icons-vue'
 import type { Household, HouseholdLampSummary } from '@/types'
 import { formatBirthday } from '@/utils/birthday-format'
 
@@ -12,7 +13,10 @@ const props = defineProps<{
 const emit = defineEmits<{
   print: []
   history: []
+  'edit-member': (memberId: number) => void
 }>()
+
+const router = useRouter()
 
 const headName = computed(() => {
   const head = props.household.members.find((m) => m.role === 'head')
@@ -53,22 +57,26 @@ const memberRows = computed<MemberLampRow[]>(() => {
     }
   })
 })
+
+function handleEdit() {
+  router.push({ name: 'LampEdit', params: { householdId: props.household.id } })
+}
 </script>
 
 <template>
   <div class="household-lamp-info">
     <div class="info-header">
       <h3 class="info-title">戶口點燈資訊</h3>
-      <div class="info-actions">
-        <el-button @click="emit('print')">
-          <el-icon><Document /></el-icon>
-          列印報名表
-        </el-button>
-        <el-button @click="emit('history')">
-          <el-icon><Timer /></el-icon>
-          歷史紀錄
-        </el-button>
-      </div>
+          <div class="info-actions">
+            <el-button @click="emit('print')">
+              <el-icon><Document /></el-icon>
+              列印報名表
+            </el-button>
+            <el-button @click="emit('history')">
+              <el-icon><Timer /></el-icon>
+              歷史紀錄
+            </el-button>
+          </div>
     </div>
 
     <div class="household-detail">
@@ -135,6 +143,16 @@ const memberRows = computed<MemberLampRow[]>(() => {
               <SuccessFilled v-if="row.hasTaiSui" />
               <RemoveFilled v-else />
             </el-icon>
+          </template>
+        </el-table-column>
+        <el-table-column min-width="80" align="center">
+          <template #header>
+            編輯
+          </template>
+          <template #default="{ row }">
+            <el-button type="text" @click="() => emit('edit-member', row.memberId)">
+              <el-icon><Edit /></el-icon>
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

@@ -1,43 +1,54 @@
 import apiClient from './client'
-import type {
-  Household,
-  CreateHouseholdPayload,
-  UpdateHouseholdPayload,
-  CreateMemberPayload,
-  UpdateMemberPayload,
-  HouseholdQueryParams,
-  PaginatedResponse,
-  ApiResponse,
-} from '@/types'
+import type { BackendResponse } from '@/types/api'
 
-export function queryHouseholds(params: HouseholdQueryParams) {
-  return apiClient.get<PaginatedResponse<Household>>('/households', { params })
+// BEL-003: 查詢信徒資料 → GET api/bel/search/
+// 後端接受: searchMethod, searchText
+export function queryHouseholds(params: {
+  searchMethod?: string
+  searchText?: string
+}) {
+  return apiClient.get<BackendResponse<{ HouseholdList: unknown[] }>>('/bel/search/', { params })
 }
 
-export function getHousehold(id: number) {
-  return apiClient.get<ApiResponse<Household>>(`/households/${id}`)
+// BEL-002-1: 取得戶籍詳細資料 → GET api/bel/household/<householdId>/
+export function getHouseholdDetail(householdId: string | number) {
+  return apiClient.get<BackendResponse<{ Household: unknown }>>(`/bel/household/${householdId}/`)
 }
 
-export function createHousehold(data: CreateHouseholdPayload) {
-  return apiClient.post<ApiResponse<Household>>('/households', data)
+// BEL-001-1: 建立戶籍資料 → POST api/bel/household/create/
+// 必填: Household_ID, Postal_code, Address, phone
+export function createHousehold(data: Record<string, unknown>) {
+  return apiClient.post<BackendResponse>('/bel/household/create/', { Data: data })
 }
 
-export function updateHousehold(id: number, data: UpdateHouseholdPayload) {
-  return apiClient.put<ApiResponse<Household>>(`/households/${id}`, data)
+// BEL-002-1: 更新戶籍基本資料 → PUT api/bel/household/update/
+// 必填: Household_ID；選填: Postal_code, Address, phone
+export function updateHousehold(data: Record<string, unknown>) {
+  return apiClient.put<BackendResponse>('/bel/household/update/', { Data: data })
 }
 
-export function deleteHousehold(id: number) {
-  return apiClient.delete<ApiResponse<null>>(`/households/${id}`)
+// BEL-002-3: 刪除戶籍資料 → DELETE api/bel/household/delete/
+export function deleteHousehold(householdId: string | number) {
+  return apiClient.delete<BackendResponse>('/bel/household/delete/', {
+    data: { Data: { Household_ID: householdId } },
+  })
 }
 
-export function addMember(householdId: number, data: CreateMemberPayload) {
-  return apiClient.post<ApiResponse<null>>(`/households/${householdId}/members`, data)
+// BEL-001-2: 新增戶員資料 → POST api/bel/member/create/
+// 必填: Member_ID, Household_ID, name, Lunar_Birthday, Gregorian_Birthday
+export function createMember(data: Record<string, unknown>) {
+  return apiClient.post<BackendResponse>('/bel/member/create/', { Data: data })
 }
 
-export function updateMember(id: number, data: UpdateMemberPayload) {
-  return apiClient.put<ApiResponse<null>>(`/members/${id}`, data)
+// BEL-002-2: 更新戶員資料 → PUT api/bel/member/update/
+// 必填: Member_ID, Household_ID；選填: name, Lunar_Birthday, Gregorian_Birthday, isHeadOfHousehold
+export function updateMember(data: Record<string, unknown>) {
+  return apiClient.put<BackendResponse>('/bel/member/update/', { Data: data })
 }
 
-export function deleteMember(id: number) {
-  return apiClient.delete<ApiResponse<null>>(`/members/${id}`)
+// BEL-002-4: 刪除戶員資料 → DELETE api/bel/member/delete/
+export function deleteMember(memberId: string | number, householdId: string | number) {
+  return apiClient.delete<BackendResponse>('/bel/member/delete/', {
+    data: { Data: { Member_ID: memberId, Household_ID: householdId } },
+  })
 }
