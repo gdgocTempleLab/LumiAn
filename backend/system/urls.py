@@ -1,15 +1,5 @@
 from django.urls import path
-from .views import (
-    LoginView,
-    TemplateAPIView,
-    AccountListView,
-    CreateAccountView,
-    AccountDetailView,
-    UpdateAccountView,
-    UpdateProfileView,
-    ChangePasswordView,
-    AdminResetPasswordView,
-)
+from .views import LoginView, TemplateAPIView, AccountListView, CreateAccountView, AccountDetailView, UpdateAccountView, UpdateProfileView, ChangePasswordView, AdminResetPasswordView
 
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
@@ -20,7 +10,7 @@ urlpatterns = [
     path('account/reset-password/', AdminResetPasswordView.as_view(), name='admin_reset_password'),
     path('profile/update/', UpdateProfileView.as_view(), name='update_profile'),
     path('profile/change-password/', ChangePasswordView.as_view(), name='change_password'),
-
+    
     # ==========================================
     # API Route Template
     # You can copy and paste the line below to route your new API.
